@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { User, Bell, Shield, DollarSign, MessageCircle, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -35,9 +34,19 @@ const Configuracoes = () => {
   });
 
   const [whatsappConfig, setWhatsappConfig] = useState({
-    mensagemPadrao: `Olá {nome}! Este é um lembrete sobre seu plano {servidor}. Seu serviço {status_vencimento}. Valor: R$ {plano_mensal}/mês. Para renovar, entre em contato conosco.`,
-    assinaturaAutomatica: true,
-    assinatura: '\n\n--\nTEKINFORMÁTICA\nRicardo Moraes\n(21) 99999-9999'
+    mensagemPadrao: `Bom dia. Olá! Oi, tudo bem?
+Seu aplicativo está vencendo
+Vamos renovar o seu plano!
+
+Vencimento: {dias_vencimento}
+Plano mensal: {plano_mensal}
+Plano trimestral: {plano_trimestral}
+
+NU PAGAMENTOS
+TEKINFORMÁTICA
+CHAVE PIX EMAIL`,
+    assinaturaAutomatica: false,
+    assinatura: ''
   });
 
   const [seguranca, setSeguranca] = useState({
@@ -108,11 +117,12 @@ const Configuracoes = () => {
       return;
     }
 
+    // Simular salvamento
     console.log('Salvando WhatsApp config:', whatsappConfig);
     
     toast({
       title: "Configuração do WhatsApp atualizada",
-      description: "Sua mensagem padrão foi salva",
+      description: "Sua mensagem padrão foi salva com sucesso",
     });
   };
 
@@ -329,7 +339,7 @@ const Configuracoes = () => {
                     id="mensagem"
                     value={whatsappConfig.mensagemPadrao}
                     onChange={(e) => setWhatsappConfig(prev => ({ ...prev, mensagemPadrao: e.target.value }))}
-                    className="input-dark min-h-[120px]"
+                    className="input-dark min-h-[200px]"
                     placeholder="Digite sua mensagem padrão..."
                   />
                 </div>
@@ -384,7 +394,7 @@ const Configuracoes = () => {
                   <h4 className="text-tek-cyan font-semibold mb-2">Preview da Mensagem</h4>
                   <div className="bg-tek-sidebar p-3 rounded text-sm text-gray-300 whitespace-pre-wrap">
                     {whatsappConfig.mensagemPadrao}
-                    {whatsappConfig.assinaturaAutomatica && whatsappConfig.assinatura}
+                    {whatsappConfig.assinaturaAutomatica && whatsappConfig.assinatura && `\n${whatsappConfig.assinatura}`}
                   </div>
                 </div>
 
