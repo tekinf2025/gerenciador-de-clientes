@@ -9,16 +9,95 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      clientes: {
+        Row: {
+          conta_criada: string
+          created_at: string
+          data_vencimento: string
+          id: string
+          id_client: string
+          nome: string
+          observacao: string | null
+          plano_mensal: number
+          plano_trimestral: number
+          servidor: Database["public"]["Enums"]["tipo_servidor"]
+          status: Database["public"]["Enums"]["status_cliente"]
+          telefone: string | null
+          updated_at: string
+        }
+        Insert: {
+          conta_criada?: string
+          created_at?: string
+          data_vencimento: string
+          id?: string
+          id_client: string
+          nome: string
+          observacao?: string | null
+          plano_mensal?: number
+          plano_trimestral?: number
+          servidor: Database["public"]["Enums"]["tipo_servidor"]
+          status?: Database["public"]["Enums"]["status_cliente"]
+          telefone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          conta_criada?: string
+          created_at?: string
+          data_vencimento?: string
+          id?: string
+          id_client?: string
+          nome?: string
+          observacao?: string | null
+          plano_mensal?: number
+          plano_trimestral?: number
+          servidor?: Database["public"]["Enums"]["tipo_servidor"]
+          status?: Database["public"]["Enums"]["status_cliente"]
+          telefone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      configuracoes_servidor: {
+        Row: {
+          created_at: string
+          id: string
+          preco_mensal: number
+          tipo_servidor: Database["public"]["Enums"]["tipo_servidor"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          preco_mensal?: number
+          tipo_servidor: Database["public"]["Enums"]["tipo_servidor"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          preco_mensal?: number
+          tipo_servidor?: Database["public"]["Enums"]["tipo_servidor"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      dias_ate_vencimento: {
+        Args: { data_venc: string }
+        Returns: number
+      }
+      dias_conta_ativa: {
+        Args: { data_criacao: string }
+        Returns: number
+      }
     }
     Enums: {
-      [_ in never]: never
+      status_cliente: "Ativo" | "Vencido"
+      tipo_servidor: "P2X" | "P2_SERVER" | "CPLAYER" | "RTV" | "RTV-VODs"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +212,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      status_cliente: ["Ativo", "Vencido"],
+      tipo_servidor: ["P2X", "P2_SERVER", "CPLAYER", "RTV", "RTV-VODs"],
+    },
   },
 } as const

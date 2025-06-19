@@ -8,19 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
-
-interface Cliente {
-  id: string;
-  nome: string;
-  telefone: string;
-  servidor: string;
-  plano_mensal: number;
-  plano_trimestral: number;
-  data_vencimento: string;
-  status: string;
-  conta_criada: string;
-  observacao?: string;
-}
+import { useClientes, Cliente } from '@/hooks/useClientes';
 
 const servidorCustos = {
   'P2X': 6.00,
@@ -30,15 +18,16 @@ const servidorCustos = {
   'RTV-VODs': 0.00
 };
 
-const clientesIniciais: Cliente[] = [
-  { id: 'CLI-100002', nome: 'Marcelino Gomes', telefone: '5521982271401', servidor: 'P2_SERVER', plano_mensal: 35, plano_trimestral: 90, data_vencimento: '2025-05-10', status: 'Vencido', conta_criada: '2023-03-18', observacao: '' },
-  { id: 'CLI-100003', nome: 'Angelo Lisboa', telefone: '5521993451684', servidor: 'P2X', plano_mensal: 30, plano_trimestral: 75, data_vencimento: '2025-05-28', status: 'Vencido', conta_criada: '2021-01-04', observacao: '' },
-  { id: 'CLI-100004', nome: 'Maria Silva', telefone: '5521987654321', servidor: 'CPLAYER', plano_mensal: 25, plano_trimestral: 60, data_vencimento: '2025-06-25', status: 'Ativo', conta_criada: '2022-01-15', observacao: 'Cliente premium' },
-  { id: 'CLI-100005', nome: 'João Santos', telefone: '5521876543210', servidor: 'RTV', plano_mensal: 40, plano_trimestral: 100, data_vencimento: '2025-07-01', status: 'Ativo', conta_criada: '2023-06-10', observacao: '' },
-];
-
 const Clientes = () => {
-  const [clientes, setClientes] = useState<Cliente[]>(clientesIniciais);
+  const { 
+    clientes, 
+    loading, 
+    createCliente, 
+    updateCliente, 
+    deleteCliente, 
+    importClientesCSV 
+  } = useClientes();
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('Todos');
   const [filterServidor, setFilterServidor] = useState('Todos');
@@ -76,7 +65,7 @@ const Clientes = () => {
     let filtered = clientes.filter(cliente => {
       const matchesSearch = cliente.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            cliente.telefone.includes(searchTerm) ||
-                           cliente.id.toLowerCase().includes(searchTerm.toLowerCase());
+                           cliente.id_client.toLowerCase().includes(searchTerm.toLowerCase());
       
       const statusAtual = calcularStatus(cliente.data_vencimento);
       const matchesStatus = filterStatus === 'Todos' || statusAtual === filterStatus;
@@ -165,7 +154,7 @@ const Clientes = () => {
     const csvContent = [
       headers.join(','),
       ...clientesFiltrados.map(cliente => [
-        `"${cliente.id}"`,
+        `"${cliente.id_client}"`,
         `"${cliente.nome}"`,
         `"${cliente.telefone}"`,
         `"${cliente.servidor}"`,
@@ -190,75 +179,80 @@ const Clientes = () => {
     });
   };
 
-  const importCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const importCSV = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const text = e.target?.result as string;
       const lines = text.split('\n');
       const headers = lines[0].split(',').map(h => h.replace(/"/g, ''));
       
-      const novosClientes: Cliente[] = [];
+      const novosClientes: Omit<Cliente, 'id'>[] = [];
       
       for (let i = 1; i < lines.length; i++) {
         if (!lines[i].trim()) continue;
         
         const values = lines[i].split(',').map(v => v.replace(/"/g, ''));
-        const cliente: Cliente = {
-          id: values[0],
+        
+        // Gerar um novo ID único para o cliente
+        const novoIdClient = `CLI-${Date.now()}-${i}`;
+        
+        const cliente: Omit<Cliente, 'id'> = {
+          id_client: values[0] || novoIdClient,
           nome: values[1],
           telefone: values[2],
           servidor: values[3],
-          plano_mensal: parseFloat(values[4]),
-          plano_trimestral: parseFloat(values[5]),
+          plano_mensal: parseFloat(values[4]) || 0,
+          plano_trimestral: parseFloat(values[5]) || 0,
           data_vencimento: values[6],
-          status: values[7],
-          conta_criada: values[8],
+          status: values[7] || 'Ativo',
+          conta_criada: values[8] || new Date().toISOString().split('T')[0],
           observacao: values[9] || ''
         };
         novosClientes.push(cliente);
       }
       
-      setClientes(prev => [...prev, ...novosClientes]);
-      
-      toast({
-        title: "CSV importado",
-        description: `${novosClientes.length} clientes adicionados`,
-      });
+      await importClientesCSV(novosClientes);
     };
     
     reader.readAsText(file);
     event.target.value = '';
   };
 
-  const handleSaveCliente = (cliente: Cliente) => {
-    if (editingCliente) {
-      setClientes(prev => prev.map(c => c.id === cliente.id ? cliente : c));
-      toast({
-        title: "Cliente atualizado",
-        description: `${cliente.nome} foi atualizado com sucesso`,
-      });
+  const handleSaveCliente = async (cliente: Omit<Cliente, 'id'> & { id?: string }) => {
+    if (editingCliente && cliente.id) {
+      const success = await updateCliente(cliente.id, cliente);
+      if (success) {
+        setEditingCliente(null);
+        setShowForm(false);
+      }
     } else {
-      const novoId = `CLI-${Date.now()}`;
-      setClientes(prev => [...prev, { ...cliente, id: novoId }]);
-      toast({
-        title: "Cliente adicionado",
-        description: `${cliente.nome} foi adicionado com sucesso`,
-      });
+      // Gerar ID único para novo cliente
+      const novoIdClient = `CLI-${Date.now()}`;
+      const novoCliente = { ...cliente, id_client: novoIdClient };
+      delete novoCliente.id; // Remove o id para criação
+      
+      const success = await createCliente(novoCliente);
+      if (success) {
+        setEditingCliente(null);
+        setShowForm(false);
+      }
     }
-    setEditingCliente(null);
-    setShowForm(false);
   };
 
-  const handleDeleteCliente = (id: string) => {
-    setClientes(prev => prev.filter(c => c.id !== id));
-    toast({
-      title: "Cliente removido",
-      description: "Cliente foi removido com sucesso",
-    });
+  const handleDeleteCliente = async (id: string) => {
+    await deleteCliente(id);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-white">Carregando clientes...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -424,7 +418,7 @@ const Clientes = () => {
                   <td>
                     <div>
                       <p className="font-medium">{cliente.nome}</p>
-                      <p className="text-xs text-gray-400">{cliente.id}</p>
+                      <p className="text-xs text-gray-400">{cliente.id_client}</p>
                     </div>
                   </td>
                   <td>{cliente.telefone}</td>
@@ -502,10 +496,10 @@ const FormularioCliente = ({
   onCancel 
 }: { 
   cliente: Cliente | null; 
-  onSave: (cliente: Cliente) => void; 
+  onSave: (cliente: Omit<Cliente, 'id'> & { id?: string }) => void; 
   onCancel: () => void; 
 }) => {
-  const [formData, setFormData] = useState<Partial<Cliente>>({
+  const [formData, setFormData] = useState<Partial<Cliente & { id?: string }>>({
     nome: '',
     telefone: '',
     servidor: 'P2X',
@@ -545,7 +539,8 @@ const FormularioCliente = ({
     }
 
     onSave({
-      id: cliente?.id || '',
+      id: cliente?.id,
+      id_client: formData.id_client || '',
       nome: formData.nome!,
       telefone: formData.telefone!,
       servidor: formData.servidor!,
