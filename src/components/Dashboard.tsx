@@ -2,14 +2,7 @@
 import React from 'react';
 import { Users, Calendar, DollarSign, TrendingUp, AlertTriangle, CheckCircle } from 'lucide-react';
 import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-
-// Dados mock para demonstração
-const clientesData = [
-  { id: 'CLI-100002', nome: 'Marcelino Gomes', telefone: '5521982271401', servidor: 'P2_SERVER', plano_mensal: 35, plano_trimestral: 90, data_vencimento: '2025-05-10', status: 'Vencido', conta_criada: '2023-03-18' },
-  { id: 'CLI-100003', nome: 'Angelo Lisboa', telefone: '5521993451684', servidor: 'P2X', plano_mensal: 30, plano_trimestral: 75, data_vencimento: '2025-05-28', status: 'Vencido', conta_criada: '2021-01-04' },
-  { id: 'CLI-100004', nome: 'Maria Silva', telefone: '5521987654321', servidor: 'CPLAYER', plano_mensal: 25, plano_trimestral: 60, data_vencimento: '2025-06-25', status: 'Ativo', conta_criada: '2022-01-15' },
-  { id: 'CLI-100005', nome: 'João Santos', telefone: '5521876543210', servidor: 'RTV', plano_mensal: 40, plano_trimestral: 100, data_vencimento: '2025-07-01', status: 'Ativo', conta_criada: '2023-06-10' },
-];
+import { useClientes } from '@/hooks/useClientes';
 
 const servidorCustos = {
   'P2X': 6.00,
@@ -20,17 +13,27 @@ const servidorCustos = {
 };
 
 const Dashboard = () => {
-  // Cálculos das estatísticas
-  const totalClientes = clientesData.length;
-  const clientesAtivos = clientesData.filter(c => c.status === 'Ativo').length;
-  const clientesVencidos = clientesData.filter(c => c.status === 'Vencido').length;
+  const { clientes, loading, calcularStatus } = useClientes();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-white">Carregando dados...</div>
+      </div>
+    );
+  }
+
+  // Cálculos das estatísticas baseadas nos dados reais
+  const totalClientes = clientes.length;
+  const clientesAtivos = clientes.filter(c => calcularStatus(c.data_vencimento) === 'Ativo').length;
+  const clientesVencidos = clientes.filter(c => calcularStatus(c.data_vencimento) === 'Vencido').length;
   
   // Cálculo da receita
-  const receitaMensal = clientesData.reduce((total, cliente) => {
-    return total + (cliente.status === 'Ativo' ? cliente.plano_mensal : 0);
+  const receitaMensal = clientes.reduce((total, cliente) => {
+    return total + (calcularStatus(cliente.data_vencimento) === 'Ativo' ? cliente.plano_mensal : 0);
   }, 0);
 
-  const custoServidor = clientesData.reduce((total, cliente) => {
+  const custoServidor = clientes.reduce((total, cliente) => {
     return total + (servidorCustos[cliente.servidor as keyof typeof servidorCustos] || 0);
   }, 0);
 
@@ -43,17 +46,18 @@ const Dashboard = () => {
   ];
 
   const servidorData = Object.entries(
-    clientesData.reduce((acc, cliente) => {
+    clientes.reduce((acc, cliente) => {
       acc[cliente.servidor] = (acc[cliente.servidor] || 0) + 1;
       return acc;
     }, {} as Record<string, number>)
   ).map(([servidor, count]) => ({ servidor, count }));
 
+  // Dados de receita simulados para demonstração (últimos 5 meses)
   const receitaData = [
-    { mes: 'Jan', receita: 1200, custos: 240 },
-    { mes: 'Fev', receita: 1400, custos: 280 },
-    { mes: 'Mar', receita: 1100, custos: 220 },
-    { mes: 'Abr', receita: 1600, custos: 320 },
+    { mes: 'Jan', receita: receitaMensal * 0.8, custos: custoServidor * 0.8 },
+    { mes: 'Fev', receita: receitaMensal * 0.9, custos: custoServidor * 0.9 },
+    { mes: 'Mar', receita: receitaMensal * 0.85, custos: custoServidor * 0.85 },
+    { mes: 'Abr', receita: receitaMensal * 1.1, custos: custoServidor * 1.1 },
     { mes: 'Mai', receita: receitaMensal, custos: custoServidor },
   ];
 
@@ -115,37 +119,49 @@ const Dashboard = () => {
         {/* Gráfico de Pizza - Status dos Clientes */}
         <div className="card-dark">
           <h3 className="text-lg font-semibold text-white mb-4">Status dos Clientes</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={statusData}
-                cx="50%"
-                cy="50%"
-                outerRadius={100}
-                dataKey="value"
-                label={({ name, value }) => `${name}: ${value}`}
-              >
-                {statusData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+          {statusData.some(item => item.value > 0) ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={statusData}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  dataKey="value"
+                  label={({ name, value }) => `${name}: ${value}`}
+                >
+                  {statusData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-[300px] text-gray-400">
+              Nenhum cliente cadastrado
+            </div>
+          )}
         </div>
 
         {/* Gráfico de Barras - Servidores */}
         <div className="card-dark">
           <h3 className="text-lg font-semibold text-white mb-4">Clientes por Servidor</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={servidorData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#2A2A2A" />
-              <XAxis dataKey="servidor" stroke="#FFFFFF" />
-              <YAxis stroke="#FFFFFF" />
-              <Tooltip contentStyle={{ backgroundColor: '#1E1E1E', border: '1px solid #2A2A2A' }} />
-              <Bar dataKey="count" fill="#5DF0FF" />
-            </BarChart>
-          </ResponsiveContainer>
+          {servidorData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={servidorData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#2A2A2A" />
+                <XAxis dataKey="servidor" stroke="#FFFFFF" />
+                <YAxis stroke="#FFFFFF" />
+                <Tooltip contentStyle={{ backgroundColor: '#1E1E1E', border: '1px solid #2A2A2A' }} />
+                <Bar dataKey="count" fill="#5DF0FF" />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-[300px] text-gray-400">
+              Nenhum cliente cadastrado
+            </div>
+          )}
         </div>
       </div>
 
@@ -200,7 +216,7 @@ const Dashboard = () => {
           
           <button className="btn-danger flex items-center justify-center space-x-2">
             <AlertTriangle size={20} />
-            <span>Clientes Vencidos</span>
+            <span>Clientes Vencidos ({clientesVencidos})</span>
           </button>
         </div>
       </div>

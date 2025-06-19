@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Search, Plus, Filter, Edit, Trash2, MessageCircle, Download, Upload, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Search, Plus, Filter, Edit, Trash2, MessageCircle, Download, Upload, ArrowUpDown, ArrowUp, ArrowDown, Calendar, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -25,7 +25,11 @@ const Clientes = () => {
     createCliente, 
     updateCliente, 
     deleteCliente, 
-    importClientesCSV 
+    importClientesCSV,
+    adicionarMeses,
+    calcularStatus,
+    calcularDiasVencimento,
+    calcularDiasAtivo
   } = useClientes();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -36,29 +40,7 @@ const Clientes = () => {
   const [selectedClientes, setSelectedClientes] = useState<string[]>([]);
   const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
   const [showForm, setShowForm] = useState(false);
-
-  // Cálculo de status baseado na data de vencimento
-  const calcularStatus = (dataVencimento: string): string => {
-    const hoje = new Date();
-    const vencimento = new Date(dataVencimento);
-    return vencimento >= hoje ? 'Ativo' : 'Vencido';
-  };
-
-  // Cálculo de dias até vencimento
-  const calcularDiasVencimento = (dataVencimento: string): number => {
-    const hoje = new Date();
-    const vencimento = new Date(dataVencimento);
-    const diffTime = vencimento.getTime() - hoje.getTime();
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  };
-
-  // Cálculo de dias ativo
-  const calcularDiasAtivo = (contaCriada: string): number => {
-    const hoje = new Date();
-    const criacao = new Date(contaCriada);
-    const diffTime = hoje.getTime() - criacao.getTime();
-    return Math.floor(diffTime / (1000 * 60 * 60 * 24));
-  };
+  const [hideVencidosMais30, setHideVencidosMais30] = useState(false);
 
   // Filtrar e ordenar clientes
   const clientesFiltrados = useMemo(() => {
@@ -71,7 +53,12 @@ const Clientes = () => {
       const matchesStatus = filterStatus === 'Todos' || statusAtual === filterStatus;
       const matchesServidor = filterServidor === 'Todos' || cliente.servidor === filterServidor;
       
-      return matchesSearch && matchesStatus && matchesServidor;
+      // Filtro para ocultar clientes vencidos há mais de 30 dias
+      const diasVencimento = calcularDiasVencimento(cliente.data_vencimento);
+      const isVencidoMais30 = diasVencimento < -30;
+      const shouldShow = !hideVencidosMais30 || !isVencidoMais30;
+      
+      return matchesSearch && matchesStatus && matchesServidor && shouldShow;
     });
 
     // Ordenação
@@ -95,7 +82,7 @@ const Clientes = () => {
     });
 
     return filtered;
-  }, [clientes, searchTerm, filterStatus, filterServidor, sortField, sortDirection]);
+  }, [clientes, searchTerm, filterStatus, filterServidor, sortField, sortDirection, hideVencidosMais30, calcularStatus, calcularDiasVencimento]);
 
   const handleSort = (field: keyof Cliente) => {
     if (sortField === field) {
@@ -115,7 +102,7 @@ const Clientes = () => {
     const diasVencimento = calcularDiasVencimento(cliente.data_vencimento);
     const statusMsg = diasVencimento < 0 ? 'venceu' : `vence em ${diasVencimento} dias`;
     
-    const mensagem = `Olá ${cliente.nome}! Este é um lembrete sobre seu plano ${cliente.servidor}. Seu serviço ${statusMsg} (${new Date(cliente.data_vencimento).toLocaleDateString('pt-BR')}). Valor: R$ ${cliente.plano_mensal}/mês. Para renovar, entre em contato conosco.`;
+    const mensagem = `Olá ${cliente.nome}! Este é um lembrete sobre seu plano ${cliente.servidor}. Seu serviço ${statusMsg} (${new Date(cliente.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR')}). Valor: R$ ${cliente.plano_mensal}/mês. Para renovar, entre em contato conosco.`;
     
     const url = `https://wa.me/${cliente.telefone}?text=${encodeURIComponent(mensagem)}`;
     window.open(url, '_blank');
@@ -203,11 +190,11 @@ const Clientes = () => {
           id_client: values[0] || novoIdClient,
           nome: values[1],
           telefone: values[2],
-          servidor: values[3],
+          servidor: values[3] as Cliente['servidor'],
           plano_mensal: parseFloat(values[4]) || 0,
           plano_trimestral: parseFloat(values[5]) || 0,
           data_vencimento: values[6],
-          status: values[7] || 'Ativo',
+          status: (values[7] || 'Ativo') as Cliente['status'],
           conta_criada: values[8] || new Date().toISOString().split('T')[0],
           observacao: values[9] || ''
         };
@@ -244,6 +231,10 @@ const Clientes = () => {
 
   const handleDeleteCliente = async (id: string) => {
     await deleteCliente(id);
+  };
+
+  const handleAddMeses = async (clienteId: string, meses: number) => {
+    await adicionarMeses(clienteId, meses);
   };
 
   if (loading) {
@@ -348,6 +339,17 @@ const Clientes = () => {
               <SelectItem value="RTV-VODs">RTV-VODs</SelectItem>
             </SelectContent>
           </Select>
+
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="hideVencidos30"
+              checked={hideVencidosMais30}
+              onCheckedChange={(checked) => setHideVencidosMais30(checked as boolean)}
+            />
+            <Label htmlFor="hideVencidos30" className="text-sm text-gray-300">
+              Ocultar clientes vencidos há mais de 30 dias
+            </Label>
+          </div>
         </div>
       </div>
 
@@ -431,7 +433,7 @@ const Clientes = () => {
                   <td>R$ {cliente.plano_mensal.toFixed(2)}</td>
                   <td>
                     <div>
-                      <p>{new Date(cliente.data_vencimento).toLocaleDateString('pt-BR')}</p>
+                      <p>{new Date(cliente.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
                       <p className={`text-xs ${diasVencimento < 0 ? 'text-tek-red' : diasVencimento <= 5 ? 'text-yellow-400' : 'text-gray-400'}`}>
                         {diasVencimento < 0 ? `Vencido há ${Math.abs(diasVencimento)} dias` : `${diasVencimento} dias`}
                       </p>
@@ -447,6 +449,20 @@ const Clientes = () => {
                   <td>{diasAtivo} dias</td>
                   <td>
                     <div className="flex items-center space-x-2">
+                      <button 
+                        onClick={() => handleAddMeses(cliente.id, 1)}
+                        className="text-tek-green hover:text-green-400 transition-colors bg-tek-green/10 hover:bg-tek-green/20 px-2 py-1 rounded text-xs font-medium"
+                        title="Adicionar 1 mês"
+                      >
+                        +1
+                      </button>
+                      <button 
+                        onClick={() => handleAddMeses(cliente.id, 3)}
+                        className="text-tek-blue hover:text-blue-400 transition-colors bg-tek-blue/10 hover:bg-tek-blue/20 px-2 py-1 rounded text-xs font-medium"
+                        title="Adicionar 3 meses"
+                      >
+                        +3
+                      </button>
                       <button 
                         onClick={() => handleWhatsApp(cliente)}
                         className="text-tek-green hover:text-green-400 transition-colors"
@@ -589,7 +605,7 @@ const FormularioCliente = ({
           <Label htmlFor="servidor" className="text-tek-cyan">Servidor</Label>
           <Select 
             value={formData.servidor} 
-            onValueChange={(value) => setFormData(prev => ({ ...prev, servidor: value }))}
+            onValueChange={(value) => setFormData(prev => ({ ...prev, servidor: value as Cliente['servidor'] }))}
           >
             <SelectTrigger className="input-dark">
               <SelectValue />
