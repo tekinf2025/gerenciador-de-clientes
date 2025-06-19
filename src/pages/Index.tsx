@@ -1,13 +1,30 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import React, { useState } from 'react';
+import Layout from '@/components/Layout';
+import Dashboard from '@/components/Dashboard';
+import Clientes from '@/components/Clientes';
+import Configuracoes from '@/components/Configuracoes';
 
 const Index = () => {
+  const [currentPage, setCurrentPage] = useState('dashboard');
+
+  const renderPage = () => {
+    switch (currentPage) {
+      case 'dashboard':
+        return <Dashboard />;
+      case 'clientes':
+        return <Clientes />;
+      case 'configuracoes':
+        return <Configuracoes />;
+      default:
+        return <Dashboard />;
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
-    </div>
+    <Layout currentPage={currentPage} onPageChange={setCurrentPage}>
+      {renderPage()}
+    </Layout>
   );
 };
 
