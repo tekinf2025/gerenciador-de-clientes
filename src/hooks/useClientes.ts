@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -270,10 +269,29 @@ export const useClientes = () => {
       const cliente = clientes.find(c => c.id === clienteId);
       if (!cliente) return false;
 
-      const dataAtual = getDateWithoutTime(cliente.data_vencimento);
-      dataAtual.setMonth(dataAtual.getMonth() + meses);
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
       
-      const novaData = dataAtual.toISOString().split('T')[0];
+      const dataVencimentoAtual = getDateWithoutTime(cliente.data_vencimento);
+      
+      let novaDataVencimento: Date;
+      
+      // Regra: Se o cliente está vencido, calcular a partir de hoje
+      if (dataVencimentoAtual < hoje) {
+        novaDataVencimento = new Date(hoje);
+        novaDataVencimento.setMonth(novaDataVencimento.getMonth() + meses);
+        
+        toast({
+          title: "Cliente Recarregado",
+          description: `Cliente ${cliente.nome} estava vencido e foi recarregado a partir de hoje`,
+        });
+      } else {
+        // Se não está vencido, calcular a partir da data atual de vencimento
+        novaDataVencimento = new Date(dataVencimentoAtual);
+        novaDataVencimento.setMonth(novaDataVencimento.getMonth() + meses);
+      }
+      
+      const novaData = novaDataVencimento.toISOString().split('T')[0];
 
       const success = await updateCliente(clienteId, {
         data_vencimento: novaData

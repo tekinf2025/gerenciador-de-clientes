@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Bell, Shield, DollarSign, MessageCircle, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,8 +8,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
+import { useWhatsappConfig } from '@/hooks/useWhatsappConfig';
 
 const Configuracoes = () => {
+  const { config: whatsappConfigDB, loading: whatsappLoading, updateConfig } = useWhatsappConfig();
+  
   const [perfilData, setPerfilData] = useState({
     nome: 'Ricardo Moraes',
     email: 'ricardo@tekinformatica.com',
@@ -34,17 +37,7 @@ const Configuracoes = () => {
   });
 
   const [whatsappConfig, setWhatsappConfig] = useState({
-    mensagemPadrao: `Bom dia. Olá! Oi, tudo bem?
-Seu aplicativo está vencendo
-Vamos renovar o seu plano!
-
-Vencimento: {dias_vencimento}
-Plano mensal: {plano_mensal}
-Plano trimestral: {plano_trimestral}
-
-NU PAGAMENTOS
-TEKINFORMÁTICA
-CHAVE PIX EMAIL`,
+    mensagemPadrao: '',
     assinaturaAutomatica: false,
     assinatura: ''
   });
@@ -56,6 +49,17 @@ CHAVE PIX EMAIL`,
     autenticacao2FA: false
   });
 
+  // Sincronizar com dados do banco quando carregados
+  useEffect(() => {
+    if (whatsappConfigDB && !whatsappLoading) {
+      setWhatsappConfig({
+        mensagemPadrao: whatsappConfigDB.mensagem_padrao,
+        assinaturaAutomatica: whatsappConfigDB.assinatura_automatica,
+        assinatura: whatsappConfigDB.assinatura || ''
+      });
+    }
+  }, [whatsappConfigDB, whatsappLoading]);
+
   const handleSalvarPerfil = () => {
     if (!perfilData.nome || !perfilData.email) {
       toast({
@@ -66,7 +70,6 @@ CHAVE PIX EMAIL`,
       return;
     }
 
-    // Simular salvamento
     console.log('Salvando perfil:', perfilData);
     
     toast({
@@ -76,7 +79,6 @@ CHAVE PIX EMAIL`,
   };
 
   const handleSalvarCustos = () => {
-    // Validar se todos os valores são números positivos
     const custosValidos = Object.values(custosServidor).every(valor => 
       typeof valor === 'number' && valor >= 0
     );
@@ -107,7 +109,7 @@ CHAVE PIX EMAIL`,
     });
   };
 
-  const handleSalvarWhatsApp = () => {
+  const handleSalvarWhatsApp = async () => {
     if (!whatsappConfig.mensagemPadrao.trim()) {
       toast({
         title: "Erro",
@@ -117,13 +119,15 @@ CHAVE PIX EMAIL`,
       return;
     }
 
-    // Simular salvamento
-    console.log('Salvando WhatsApp config:', whatsappConfig);
-    
-    toast({
-      title: "Configuração do WhatsApp atualizada",
-      description: "Sua mensagem padrão foi salva com sucesso",
+    const success = await updateConfig({
+      mensagem_padrao: whatsappConfig.mensagemPadrao,
+      assinatura_automatica: whatsappConfig.assinaturaAutomatica,
+      assinatura: whatsappConfig.assinatura
     });
+
+    if (success) {
+      console.log('Configuração WhatsApp salva no banco:', whatsappConfig);
+    }
   };
 
   const handleSalvarSeguranca = () => {
@@ -155,7 +159,6 @@ CHAVE PIX EMAIL`,
       description: "Suas configurações de segurança foram salvas",
     });
 
-    // Limpar campos de senha
     setSeguranca(prev => ({
       ...prev,
       senhaAtual: '',
@@ -168,6 +171,16 @@ CHAVE PIX EMAIL`,
     '{nome}', '{servidor}', '{plano_mensal}', '{plano_trimestral}', 
     '{data_vencimento}', '{status_vencimento}', '{dias_vencimento}'
   ];
+
+  if (whatsappLoading) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div className="card-dark">
+          <h2 className="text-2xl font-bold text-white mb-6">Carregando configurações...</h2>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">

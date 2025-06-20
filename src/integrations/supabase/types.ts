@@ -81,6 +81,33 @@ export type Database = {
         }
         Relationships: []
       }
+      configuracoes_whatsapp: {
+        Row: {
+          assinatura: string | null
+          assinatura_automatica: boolean
+          created_at: string
+          id: string
+          mensagem_padrao: string
+          updated_at: string
+        }
+        Insert: {
+          assinatura?: string | null
+          assinatura_automatica?: boolean
+          created_at?: string
+          id?: string
+          mensagem_padrao?: string
+          updated_at?: string
+        }
+        Update: {
+          assinatura?: string | null
+          assinatura_automatica?: boolean
+          created_at?: string
+          id?: string
+          mensagem_padrao?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
