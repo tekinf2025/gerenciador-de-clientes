@@ -108,6 +108,47 @@ export type Database = {
         }
         Relationships: []
       }
+      logs_recarga: {
+        Row: {
+          cliente_id: string
+          created_at: string
+          data_vencimento_antes: string
+          data_vencimento_depois: string
+          id: string
+          meses_adicionados: number
+          nome_cliente: string
+          servidor: string
+        }
+        Insert: {
+          cliente_id: string
+          created_at?: string
+          data_vencimento_antes: string
+          data_vencimento_depois: string
+          id?: string
+          meses_adicionados: number
+          nome_cliente: string
+          servidor: string
+        }
+        Update: {
+          cliente_id?: string
+          created_at?: string
+          data_vencimento_antes?: string
+          data_vencimento_depois?: string
+          id?: string
+          meses_adicionados?: number
+          nome_cliente?: string
+          servidor?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_logs_recarga_cliente"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

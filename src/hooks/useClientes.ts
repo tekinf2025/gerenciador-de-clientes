@@ -273,10 +273,10 @@ export const useClientes = () => {
       hoje.setHours(0, 0, 0, 0);
       
       const dataVencimentoAtual = getDateWithoutTime(cliente.data_vencimento);
+      const dataVencimentoAntes = cliente.data_vencimento;
       
       let novaDataVencimento: Date;
       
-      // Regra: Se o cliente está vencido, calcular a partir de hoje
       if (dataVencimentoAtual < hoje) {
         novaDataVencimento = new Date(hoje);
         novaDataVencimento.setMonth(novaDataVencimento.getMonth() + meses);
@@ -286,18 +286,35 @@ export const useClientes = () => {
           description: `Cliente ${cliente.nome} estava vencido e foi recarregado a partir de hoje`,
         });
       } else {
-        // Se não está vencido, calcular a partir da data atual de vencimento
         novaDataVencimento = new Date(dataVencimentoAtual);
         novaDataVencimento.setMonth(novaDataVencimento.getMonth() + meses);
       }
       
       const novaData = novaDataVencimento.toISOString().split('T')[0];
 
+      // Atualizar cliente
       const success = await updateCliente(clienteId, {
         data_vencimento: novaData
       });
 
       if (success) {
+        // Registrar log de recarga
+        const { error: logError } = await supabase
+          .from('logs_recarga')
+          .insert([{
+            cliente_id: clienteId,
+            nome_cliente: cliente.nome,
+            servidor: cliente.servidor,
+            data_vencimento_antes: dataVencimentoAntes,
+            data_vencimento_depois: novaData,
+            meses_adicionados: meses,
+          }]);
+
+        if (logError) {
+          console.error('Erro ao criar log de recarga:', logError);
+          // Não interrompe o processo se o log falhar
+        }
+
         toast({
           title: "Vencimento atualizado",
           description: `Adicionado ${meses} mês(es) ao cliente ${cliente.nome}`,

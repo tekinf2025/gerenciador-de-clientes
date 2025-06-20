@@ -1,8 +1,8 @@
-
 import React from 'react';
 import { Users, Calendar, DollarSign, TrendingUp, AlertTriangle, CheckCircle } from 'lucide-react';
 import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { useClientes } from '@/hooks/useClientes';
+import RelatorioLogs from '@/components/RelatorioLogs';
 
 const servidorCustos = {
   'P2X': 6.00,
@@ -220,6 +220,9 @@ const Dashboard = () => {
           </button>
         </div>
       </div>
+
+      {/* Relatório de Logs */}
+      <RelatorioLogs />
     </div>
   );
 };
