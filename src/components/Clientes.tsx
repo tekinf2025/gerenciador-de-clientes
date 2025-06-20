@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Search, Plus, Filter, Edit, Trash2, MessageCircle, Download, Upload, ArrowUpDown, ArrowUp, ArrowDown, Calendar, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
 import { useClientes, Cliente } from '@/hooks/useClientes';
+import { useWhatsappConfig } from '@/hooks/useWhatsappConfig';
 
 const servidorCustos = {
   'P2X': 6.00,
@@ -31,6 +31,8 @@ const Clientes = () => {
     calcularDiasVencimento,
     calcularDiasAtivo
   } = useClientes();
+
+  const { config: whatsappConfig } = useWhatsappConfig();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('Todos');
@@ -100,9 +102,23 @@ const Clientes = () => {
 
   const handleWhatsApp = (cliente: Cliente) => {
     const diasVencimento = calcularDiasVencimento(cliente.data_vencimento);
-    const statusMsg = diasVencimento < 0 ? 'venceu' : `vence em ${diasVencimento} dias`;
     
-    const mensagem = `Olá ${cliente.nome}! Este é um lembrete sobre seu plano ${cliente.servidor}. Seu serviço ${statusMsg} (${new Date(cliente.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR')}). Valor: R$ ${cliente.plano_mensal}/mês. Para renovar, entre em contato conosco.`;
+    // Use the configured message from Supabase
+    let mensagem = whatsappConfig?.mensagem_padrao || 'Olá! Este é um lembrete sobre seu plano.';
+    
+    // Replace placeholders with actual values
+    mensagem = mensagem
+      .replace(/\{nome\}/g, cliente.nome)
+      .replace(/\{servidor\}/g, cliente.servidor)
+      .replace(/\{dias_vencimento\}/g, diasVencimento.toString())
+      .replace(/\{data_vencimento\}/g, new Date(cliente.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR'))
+      .replace(/\{plano_mensal\}/g, `R$ ${cliente.plano_mensal.toFixed(2)}`)
+      .replace(/\{plano_trimestral\}/g, `R$ ${cliente.plano_trimestral.toFixed(2)}`);
+
+    // Add signature if configured
+    if (whatsappConfig?.assinatura_automatica && whatsappConfig?.assinatura) {
+      mensagem += '\n\n' + whatsappConfig.assinatura;
+    }
     
     const url = `https://wa.me/${cliente.telefone}?text=${encodeURIComponent(mensagem)}`;
     window.open(url, '_blank');
